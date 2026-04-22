@@ -1,39 +1,21 @@
-// Netlify Function — usada em desenvolvimento local com: npx netlify dev
-// Em produção (Vercel), a função equivalente está em: api/estimateCalories.js
+// Vercel Serverless Function — ativa em produção no domínio do Vercel
+// Endpoint: POST /api/estimateCalories
+// Equivalente local (dev): netlify/functions/estimateCalories.js
 
-exports.handler = async function (event) {
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: "Método não permitido." }),
-    };
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Método não permitido." });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: "Chave da IA não configurada no servidor." }),
-    };
+    return res.status(500).json({ error: "Chave da IA não configurada no servidor." });
   }
 
-  let body = {};
-  try {
-    body = JSON.parse(event.body || "{}");
-  } catch {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Body inválido." }),
-    };
-  }
-
-  const { text, imageBase64, mimeType } = body;
+  const { text, imageBase64, mimeType } = req.body || {};
 
   if (!text && !imageBase64) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Forneça texto ou imagem da refeição." }),
-    };
+    return res.status(400).json({ error: "Forneça texto ou imagem da refeição." });
   }
 
   // Montar partes para o Gemini (suporte multimodal: texto + imagem)
@@ -70,25 +52,16 @@ exports.handler = async function (event) {
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
       console.error("Gemini API error:", errData);
-      return {
-        statusCode: 502,
-        body: JSON.stringify({ error: "Erro na API da IA." }),
-      };
+      return res.status(502).json({ error: "Erro na API da IA." });
     }
 
     const data = await response.json();
     const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "350";
     const calories = parseInt(rawText.replace(/\D/g, ""), 10) || 350;
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ calories }),
-    };
-  } catch (error) {
-    console.error("estimateCalories error:", error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: "Erro interno ao calcular calorias." }),
-    };
+    return res.status(200).json({ calories });
+  } catch (err) {
+    console.error("estimateCalories error:", err);
+    return res.status(500).json({ error: "Erro interno ao calcular calorias." });
   }
-};
+}

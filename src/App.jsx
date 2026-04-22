@@ -955,8 +955,10 @@ export default function App() {
           setCurrentPage("diagnosis");
         }
       } catch (error) {
-        console.error(error);
-        setAuthError("Erro ao carregar os dados do usuário.");
+        // Auth funcionou, mas Firestore falhou.
+        // Não exibir erro no login — redirecionar para diagnóstico.
+        console.error("Erro ao ler Firestore:", error);
+        setCurrentPage("diagnosis");
       } finally {
         setLoading(false);
       }
@@ -1181,7 +1183,7 @@ export default function App() {
     try {
       const uploadedImageUrl = await uploadMealImage(user.uid, image);
 
-      const response = await fetch("/.netlify/functions/estimateCalories", {
+      const response = await fetch("/api/estimateCalories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
